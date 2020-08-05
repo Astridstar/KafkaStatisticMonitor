@@ -16,25 +16,28 @@ public class MessageProcessor extends Thread implements IDataStore {
 	
 	int m_processorId;
 	boolean m_isRunning = false;
-	
+	long m_numOfRecordsProcessed = 0;
+
 	BlockingQueue<KafkaMessage> m_incomingQ = new LinkedBlockingQueue<>();
 	ConcurrentHashMap<String, StatisticData> m_dataMap = new ConcurrentHashMap<String, StatisticData>();
 
-	StatisticRecorder m_recorder;
+	Stats m_recorder;
 	CountDownLatch m_terminateLatch;
 	Logger m_logger;
 	
 	private long m_lastReportTimestamp = -1;
+	private int m_expectedMessageCount;
 	
-	public MessageProcessor(int id, CountDownLatch latch)
+	public MessageProcessor(int id, CountDownLatch latch, int expectedMessageCount)
 	{
 		super("MessageProcessor-" + id);
 		m_processorId = id;
 		m_logger = GeneralLogger.getLogger(LOGGER_NAME_PREFIX + m_processorId);
 		m_terminateLatch = latch;
-		
-		m_recorder = new StatisticRecorder();
-		
+
+		m_expectedMessageCount = expectedMessageCount;
+		m_recorder = new Stats(m_expectedMessageCount , Configurator.getReportingIntervalInMs(), m_logger);
+
 		m_logger.info("===================== " + getName() + " ready for action =====================");
 	}
 	
@@ -46,10 +49,10 @@ public class MessageProcessor extends Thread implements IDataStore {
 	
 	@Override
 	public void post(KafkaMessage msg) {
+		m_logger.debug("Adding message to incomingQ => " + msg.getString());
+
 		if(!m_incomingQ.offer ( msg ))
 			m_logger.warn("Unable to post message onto incoming Q => " + msg.getString());
-		
-		//m_logger.warn("Adding message from incomingQ => " + msg.getString());
 	}
 	
 	@Override
@@ -58,33 +61,36 @@ public class MessageProcessor extends Thread implements IDataStore {
 		long currentTime;
 		
 		m_isRunning = true;	
-		m_recorder.startCalculating();
+		//m_recorder.startCalculating();
 		while(m_isRunning) {
 			try {
-				KafkaMessage msg = m_incomingQ.take();
-				
+				// Q will block until there is something in the Q
+				KafkaMessage msg = m_incomingQ.take ( );
+
 				// There is an existing record => producer add this message before
 				// Update is most likely from a consumer
-				if(m_dataMap.containsKey(msg.messageId_))
-					consumePublishedData(msg);
+				if (m_dataMap.containsKey ( msg.messageId_ ))
+					consumePublishedData ( msg );
 				else
-					consumeUnpublishedData(msg);
-				
-				currentTime = System.currentTimeMillis();
-				if(currentTime - m_lastReportTimestamp > Configurator.getReportingIntervalInMs()) {
-					m_recorder.print(m_logger);
-					m_lastReportTimestamp = currentTime;
+					consumeUnpublishedData ( msg );
+
+				// Dump the amount of items left on the Q
+				if(m_expectedMessageCount == m_numOfRecordsProcessed) {
+					m_logger.info ( "[STAT] Reached expected number of messages count => " + m_expectedMessageCount + " (processed " + m_numOfRecordsProcessed + ")");
+					m_recorder.printWindow();
+					m_recorder.printTotal();
 				}
-			}
-			catch(InterruptedException e) {
+
+				//m_logger.info ( "----- Outstanding items in incomingQ => " + m_incomingQ.size ( ) + " -----" );
+				m_logger.info ( "[Data Map] => " + m_dataMap.size ( ) + " items " );
+			} catch(InterruptedException e) {
 				GeneralLogger.getDefaultLogger().warn(getName() + " has been interrupted");
 			}
 			
 		}		
-		//m_recorder.stopCalculating();
-		
+
 		printOutstandingItems();
-		m_recorder.logStatistics(m_logger);
+		m_recorder.printTotal();
 				
 		GeneralLogger.getDefaultLogger().warn(getName() + " exiting... ");		
 		m_terminateLatch.countDown();
@@ -98,12 +104,10 @@ public class MessageProcessor extends Thread implements IDataStore {
 		}
 		
 		if(data.sourceId_ != msg.sourceId_) {
-			m_logger.warn(String.format("Message sourceId [%s] differs from the Statistic ID [%s] and yet the message ID is identical!",
-					msg.topic_, data.topic_));
+			m_logger.warn ( String.format ( "Message sourceId [%s] differs from the Statistic ID [%s] and yet the message ID is identical!" ,
+					msg.topic_ , data.topic_ ) );
 			return false;
-			
 		}
-			
 		return true;
 	}
 	
@@ -114,14 +118,16 @@ public class MessageProcessor extends Thread implements IDataStore {
 		if(validateMessageContentAndTopic(msg, data)) {
 			// Update the destination and source
 			if(KafkaConsumerMessage.class.isAssignableFrom(msg.getClass())) {
-				//m_logger.warn("Removing consumed messages");
+				m_logger.debug("Removing consumed messages");
+
 				KafkaConsumerMessage cMsg = (KafkaConsumerMessage) msg;
 				data.destId_ = cMsg.consumerId_;
 				data.setRecvTimestamp(cMsg.consumedTimestamp_);	
 				data.log(m_logger);
 				m_dataMap.remove(msg.messageId_);
-				//m_recorder.updateLatencies(data.elapsedTimeInMs_);
-				m_recorder.update(msg.calculateSizeInBytes(), data.elapsedTimeInMs_);
+
+				m_numOfRecordsProcessed++;
+				m_recorder.record ( (int) m_numOfRecordsProcessed, (int) data.elapsedTimeInMs_, (int) msg.calculateSizeInBytes(), cMsg.consumedTimestamp_ );
 			} 
 			else {
 				data.setRecvTimestamp(-1);
@@ -160,14 +166,14 @@ public class MessageProcessor extends Thread implements IDataStore {
 	}
 	
 	private void printOutstandingItems() {
-		m_logger.info("----- Outstanding items in incomingQ => " + m_incomingQ.size() + " -----");
+		m_logger.info("[FINAL] Outstanding items in incomingQ => " + m_incomingQ.size() + " -----");
 		for(KafkaMessage msg : m_incomingQ) {
-			m_logger.info("Outstanding => " + msg.getString());
+			m_logger.info("[FINAL] Outstanding => " + msg.getString());
 		}
 
-		m_logger.info("----- Unconsumed items in Data Map => " + m_dataMap.size() + " -----");
+		m_logger.info("[FINAL] Unconsumed items in Data Map => " + m_dataMap.size() + " -----");
 		for(StatisticData data : m_dataMap.values()) {
-			m_logger.info("Unconsumed => " + data.getString());
+			m_logger.info("[FINAL] Unconsumed => " + data.getString());
 		}
 	}
 

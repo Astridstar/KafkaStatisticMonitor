@@ -36,7 +36,7 @@ public class DataStoreManager extends Thread implements IDataStore{
 		for(int i = 1; i <= numProducers; i++)
 		{
 			ProducerInfo producerInfo = Configurator.getProducerInformation(i);
-			MessageProcessor proc = new MessageProcessor(producerInfo.id_, m_terminateChildrenLatch);
+			MessageProcessor proc = new MessageProcessor(producerInfo.id_, m_terminateChildrenLatch, (int)producerInfo.maxMessageToPublish_);
 			proc.start();
 			m_processors.put(producerInfo.id_, proc);
 		}
@@ -47,8 +47,7 @@ public class DataStoreManager extends Thread implements IDataStore{
 		m_isRunning = false;
 		interrupt();
 		
-		for(MessageProcessor processor: m_processors.values())
-		{
+		for(MessageProcessor processor: m_processors.values()) {
 			processor.cleanup();
 		}
 		

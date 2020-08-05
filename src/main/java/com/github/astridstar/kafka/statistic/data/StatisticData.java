@@ -43,8 +43,15 @@ public class StatisticData extends KafkaMessage {
 
     public void log(Logger logger) {
         logger.debug(getString());
-        logger.info(String.format("[STAT]|%s|%d|%d|%d|%s|%d|%d|%d",
-                messageId_, sourceId_, destId_, timestamp_, topic_, recvTimestamp_, elapsedTimeInMs_, (content_ == null) ? 0 : content_.length));
+        logger.info(String.format("[MSG]|%s|%d|%d|%d|%s|%d|%d|%d|%d",
+                        messageId_,
+                        sourceId_,
+                        destId_,
+                        timestamp_,
+                        topic_,
+                        calculateSizeInBytes(),
+                        recvTimestamp_,
+                        elapsedTimeInMs_, ( content_ == null) ? 0 : content_.length));
     }
 
     private long calculateElapsedTimeInMs() {

@@ -32,21 +32,12 @@ public class StatisticRecorder {
 
     public void stopCalculating() {
         m_endTimeInMs = System.currentTimeMillis();
-		/*
-		long elapsed = m_endTimeInMs - m_startTimeInMs;
-
-		m_durationInSec = ((double)elapsed) /1000;
-		m_durationInMin = m_durationInSec / 60;
-		m_durationInHour = m_durationInMin /60;
-		m_avgProcessedDataKBPerSec = (m_accProcessedDataSizeInKb) / ((m_endTimeInMs - m_startTimeInMs)/1000);
-		m_avgLatency = m_accLatencies / m_processedDataCounter;
-		*/
         calculate(m_endTimeInMs);
     }
 
     public void update(long sizeInBytes, long elapsedTimeInMs) {
         m_endTimeInMs = System.currentTimeMillis();
-        m_accProcessedDataSizeInKb += ((double)sizeInBytes / 1000);
+        m_accProcessedDataSizeInKb += ((double)sizeInBytes) / 1024;
         ++m_processedDataCounter;
         m_accLatencies += elapsedTimeInMs;
         calculate(m_endTimeInMs);
@@ -59,7 +50,7 @@ public class StatisticRecorder {
         m_durationInMin = ((double) m_durationInSec) / 60;
         m_durationInHour = ((double) m_durationInMin) /60;
 
-        m_avgProcessedDataKBPerSec = ((double)m_accProcessedDataSizeInKb) / (((double)(endtime - m_startTimeInMs))/1000);
+        m_avgProcessedDataKBPerSec = m_accProcessedDataSizeInKb / (((double)(endtime - m_startTimeInMs))/1000);
         m_avgLatency = ((float)m_accLatencies) / m_processedDataCounter;
     }
 
@@ -73,10 +64,10 @@ public class StatisticRecorder {
 
     public void logStatistics(Logger logger) {
         logger.info("-----------------------------------------------------");
-        logger.info(String.format("  Avg data           (%.5f KB/sec)", m_avgProcessedDataKBPerSec));
-        logger.info(String.format("  Avg latency        (%.2f ms)", m_avgLatency));
-        logger.info(String.format("  Volume of messages (%d) ", m_processedDataCounter));
-        logger.info(String.format("  Test duration      (%.5f hrs) or (%.5f min) or (%.5f secs) ", m_durationInHour, m_durationInMin, m_durationInSec));
+        logger.info(String.format("  Summary Avg data           (%.5f KB/sec)", m_avgProcessedDataKBPerSec));
+        logger.info(String.format("  Summary Avg latency        (%.2f ms)", m_avgLatency));
+        logger.info(String.format("  Summary Volume of messages (%d) ", m_processedDataCounter));
+        logger.info(String.format("  Summary Test duration      (%.5f hrs) or (%.5f min) or (%.5f secs) ", m_durationInHour, m_durationInMin, m_durationInSec));
         logger.info("-----------------------------------------------------");
     }
 }

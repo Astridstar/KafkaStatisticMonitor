@@ -1,36 +1,23 @@
 package com.github.astridstar.kafka.statistic.processing;
 
+import com.github.astridstar.kafka.statistic.data.Configurator;
+import com.github.astridstar.kafka.statistic.data.KafkaMessage;
+import com.github.astridstar.kafka.statistic.loggers.GeneralLogger;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
-import com.github.astridstar.kafka.statistic.data.Configurator;
-import com.github.astridstar.kafka.statistic.data.KafkaMessage;
-import com.github.astridstar.kafka.statistic.loggers.GeneralLogger;
-
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.metrics.MetricConfig;
-import org.apache.kafka.common.metrics.Metrics;
-import org.apache.kafka.common.metrics.MetricsReporter;
-import org.slf4j.Logger;
-
 public class Producer extends Thread {
 	
 	private static final String DEF_PRODUCER_THRD_PREFIX = "Producer-";
-	
-	private static long MESSAGE_ID = 0;
-	synchronized private static String getNextMessageId()
-	{
-		if(MESSAGE_ID >= Long.MAX_VALUE)
-			MESSAGE_ID = 0;
-		
-		return String.format("%s%d", Configurator.SESSION_ID_MSG_ID_PREFIX, ++MESSAGE_ID);
-	}
-	
+
 	private int 		m_producerId = -1;
 	private String 		m_producerIdStr = "";
 	private String 		m_publishedTopic = "";
@@ -46,6 +33,15 @@ public class Producer extends Thread {
 	private KafkaProducer<Integer, byte[]> m_kafkaProducer = null;
 	private final CountDownLatch m_terminateLatch;
 	private final Logger m_logger;
+
+	private long MESSAGE_ID = 0;
+	synchronized private String getNextMessageId()
+	{
+		if(MESSAGE_ID >= Long.MAX_VALUE)
+			MESSAGE_ID = 0;
+
+		return String.format("%s%d%s%d", Configurator.SESSION_ID_MSG_ID_PREFIX, m_producerId, Configurator.DEFAULT_MSG_ID_SEPARATOR, ++MESSAGE_ID);
+	}
 
 	public Producer(int id, String publishingTopic, MonitoringAgent ds, int intervalMsgCount, String payloadFile, long maxMessageCount, CountDownLatch latch)
 	{
@@ -98,17 +94,24 @@ public class Producer extends Thread {
 			currentTime = System.currentTimeMillis();
 			try {
 				messageCount = publish(messageCount);
-				Thread.sleep(m_elapsedTimeInMs);
+
+				long timeDiff = currentTime - m_startTimeInMs;
+				if(timeDiff < m_elapsedTimeInMs) Thread.sleep ( m_elapsedTimeInMs - timeDiff );
+				else Thread.sleep ( m_elapsedTimeInMs );
+
 			} catch (InterruptedException e) {
 				GeneralLogger.getDefaultLogger().warn(getName() + " has been interrupted.");
 			}
-			
-			if((currentTime - m_startTimeInMs)/1000 >= Configurator.getPublishingDurationInSec() )
-				break;
+
+			// Published required number of messages, time to close the producer
+			if(m_maxMessageCount <= messageCount) break;
+
+			//if((currentTime - m_startTimeInMs)/1000 >= Configurator.getPublishingDurationInSec() )
+			//	break;
 		}
 		
 		m_kafkaProducer.close();
-		GeneralLogger.getDefaultLogger().warn(getName() + " thread terminating ...");
+		GeneralLogger.getDefaultLogger().warn(getName() + " thread terminating ... after publishing " + messageCount + " messages.  Target=" + m_maxMessageCount);
 		m_terminateLatch.countDown();
 	}
 	

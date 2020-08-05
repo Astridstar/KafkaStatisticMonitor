@@ -37,6 +37,7 @@ public class Configurator {
 
     private static final String  DEFAULT_CONSUMER_GROUP="CONSUMER_GROUP_1";
 
+    public static final String  DEFAULT_MSG_ID_SEPARATOR="-";
     public static final String  DEFAULT_PAYLOAD_MARKER="@";
     public static final String  DEFAULT_LOGGER_GROUP_PREFIX = "GROUP_";
     public static final int DEFAULT_PRODUCER_INTERVAL_MSG_COUNT =1;

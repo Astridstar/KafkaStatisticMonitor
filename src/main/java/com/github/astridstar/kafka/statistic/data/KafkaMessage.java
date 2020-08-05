@@ -57,7 +57,7 @@ public class KafkaMessage {
         String header = String.format("%s%s%d%s%d%s%s%s",
                 messageId_, separator_, sourceId_, separator_, timestamp_, separator_, topic_, Configurator.DEFAULT_PAYLOAD_MARKER);
 
-        return (header.length() + (content_ == null ? 0 : content_.length));
+        return (header.length() + (content_ == null ? 0 : content_.length)) + 1;
     }
 
     public byte[] serialize()
@@ -103,7 +103,7 @@ public class KafkaMessage {
 
         // No marker found, strange but treat it as no content....
         if(!bPayloadMarker) {
-            GeneralLogger.getDefaultLogger().warn("[STRANGE] Uable to find content marker.  Treating the whole message as the header content");
+            GeneralLogger.getDefaultLogger().warn("[STRANGE] Unable to find content marker.  Treating the whole message as the header content");
             position = rawData.length - 1;
         }
 
