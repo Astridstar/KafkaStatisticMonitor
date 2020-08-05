@@ -1,0 +1,26 @@
+<component name="ArtifactManager">
+  <artifact name="kafka-statistics-monitor:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/kafka_statistics_monitor_jar</output-path>
+    <root id="root">
+      <element id="archive" name="kafka-statistics-monitor.jar">
+        <element id="module-output" name="kafka-statistics-monitor" />
+        <element id="directory" name="META-INF">
+          <element id="file-copy" path="$PROJECT_DIR$/src/main/java/META-INF/MANIFEST.MF" />
+        </element>
+      </element>
+      <element id="library" level="project" name="Maven: org.slf4j:slf4j-log4j12:1.7.30" />
+      <element id="library" level="project" name="Maven: org.slf4j:slf4j-api:1.7.30" />
+      <element id="library" level="project" name="Maven: org.xerial.snappy:snappy-java:1.1.7.3" />
+      <element id="library" level="project" name="Maven: org.lz4:lz4-java:1.7.1" />
+      <element id="library" level="project" name="Maven: log4j:log4j:1.2.17" />
+      <element id="library" level="project" name="Maven: com.github.luben:zstd-jni:1.4.4-7" />
+      <element id="library" level="project" name="Maven: org.apache.kafka:kafka-clients:2.5.0" />
+      <element id="directory" name="config">
+        <element id="file-copy" path="$PROJECT_DIR$/config/consumer.properties" />
+        <element id="file-copy" path="$PROJECT_DIR$/config/log4j.properties" />
+        <element id="file-copy" path="$PROJECT_DIR$/config/producer.properties" />
+        <element id="file-copy" path="$PROJECT_DIR$/config/StatisticsMonitor.properties" />
+      </element>
+    </root>
+  </artifact>
+</component>
