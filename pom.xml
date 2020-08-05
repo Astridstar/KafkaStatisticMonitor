@@ -6,7 +6,7 @@
 
     <groupId>com.github.astridstar</groupId>
     <artifactId>kafka-statistics-monitor</artifactId>
-    <version>1.0</version>
+    <version>0.8</version>
 
     <dependencies>
         <!-- https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->

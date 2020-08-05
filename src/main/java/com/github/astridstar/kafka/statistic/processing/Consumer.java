@@ -93,6 +93,10 @@ public class Consumer extends Thread {
 			    		}
 			    		
 				    	if(Configurator.getBIsForwardingEnabled()) {
+							//KafkaConsumerMessage incomingM = new KafkaConsumerMessage(record.value(), m_consumerId);
+							//m_logger.info("[RECEIVED] offset = " + record.offset()
+							//		+ ", key = " + record.key() + ", value = " + incomingM.getString() );
+
 							m_logger.info("[RECEIVED] offset = " + record.offset()
 									+ ", key = " + record.key() );
 				    		m_datastore.post(m_interestedPublisher, record.topic(), record.timestamp(),record.value());

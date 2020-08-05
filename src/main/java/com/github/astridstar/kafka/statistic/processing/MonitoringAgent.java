@@ -64,7 +64,7 @@ public class MonitoringAgent implements IDataStore {
 				for(int i = 1; i <= number; i++)
 				{
 					ProducerInfo info = Configurator.getProducerInformation(i);
-					Producer proc = new Producer(info.id_, info.topic_, this, info.intervalMessageCount_, info.payloadFile_, m_terminateLatch);
+					Producer proc = new Producer(info.id_, info.topic_, this, info.intervalMessageCount_, info.payloadFile_, info.maxMessageToPublish_, m_terminateLatch);
 					proc.configure(producerProps);
 					m_producers.put(info.id_, proc);
 	
@@ -137,12 +137,14 @@ public class MonitoringAgent implements IDataStore {
 	@Override
 	public void post(int srcId, String topic, long receivedTimestamp, byte[] rawData) {
 		if (!m_forwarders.containsKey ( srcId )) {
+			GeneralLogger.getDefaultLogger().error ("No forwarder can be found for ID=" + srcId);
 			return;
 		}
 		var fwder = m_forwarders.get(srcId);
-		if(fwder == null)
+		if(fwder == null) {
+			GeneralLogger.getDefaultLogger().error ("No forwarder can be retrieved for ID=" + srcId);
 			return;
-
+		}
 		fwder.post(srcId, topic, receivedTimestamp, rawData);
 	}
 }

@@ -41,12 +41,13 @@ public class Producer extends Thread {
 	private byte[] 		m_payload = null;
 	private long 		m_elapsedTimeInMs = 5000;
 	private long		m_startTimeInMs = 0;
-	
+	private long		m_maxMessageCount;
+
 	private KafkaProducer<Integer, byte[]> m_kafkaProducer = null;
 	private final CountDownLatch m_terminateLatch;
 	private final Logger m_logger;
 
-	public Producer(int id, String publishingTopic, MonitoringAgent ds, int intervalMsgCount, String payloadFile, CountDownLatch latch)
+	public Producer(int id, String publishingTopic, MonitoringAgent ds, int intervalMsgCount, String payloadFile, long maxMessageCount, CountDownLatch latch)
 	{
 		super(DEF_PRODUCER_THRD_PREFIX + id);
 		m_producerId = id;
@@ -56,6 +57,7 @@ public class Producer extends Thread {
 		m_intervalMessageCount = intervalMsgCount;
 		m_payloadFile = payloadFile;
 		m_terminateLatch = latch;
+		m_maxMessageCount = maxMessageCount;
 		m_logger = GeneralLogger.getLogger(Configurator.DEFAULT_LOGGER_GROUP_PREFIX + m_producerId);
 	}
 	
@@ -85,6 +87,7 @@ public class Producer extends Thread {
 	@Override
 	public void run() {
 		long currentTime = 0;
+		long messageCount = 0;
 		m_keepRunning = true;
 		
 		if(Configurator.getBIsTransactionsEnabled())
@@ -94,9 +97,8 @@ public class Producer extends Thread {
 		while(m_keepRunning) {
 			currentTime = System.currentTimeMillis();
 			try {
-				publish();
+				messageCount = publish(messageCount);
 				Thread.sleep(m_elapsedTimeInMs);
-				
 			} catch (InterruptedException e) {
 				GeneralLogger.getDefaultLogger().warn(getName() + " has been interrupted.");
 			}
@@ -110,14 +112,15 @@ public class Producer extends Thread {
 		m_terminateLatch.countDown();
 	}
 	
-	private void publish()
+	private long publish(long currentMessageCount)
 	{
-		if(m_intervalMessageCount <= 0)
-			return;
+		if(m_intervalMessageCount <= 0 || currentMessageCount >= m_maxMessageCount)
+			return currentMessageCount;
 		
 		if(Configurator.getBIsTransactionsEnabled())
 			m_kafkaProducer.beginTransaction();
 
+		int counter = 0;
 		for(int i = 0; i < m_intervalMessageCount; i++) {
 			// Construct message
 			String mId = getNextMessageId();
@@ -134,16 +137,21 @@ public class Producer extends Thread {
 				m_kafkaProducer.send ( record ,
 						new ProducerCallbackImpl ( System.currentTimeMillis ( ) , message ) );
 				m_datastore.post ( message );
+
+				counter++;
 			} catch	(Exception e) {
 				m_logger.warn ( "Exception caught trying to publish messages", e );
 				break;
 			}
+
+			if(counter >= m_maxMessageCount) break;
 		}
 		
 		if(Configurator.getBIsTransactionsEnabled())
 			m_kafkaProducer.commitTransaction();
 		
 		m_kafkaProducer.flush();
+		return counter + currentMessageCount;
 	}
 }
 

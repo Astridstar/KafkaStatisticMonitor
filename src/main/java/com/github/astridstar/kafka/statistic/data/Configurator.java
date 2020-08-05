@@ -25,6 +25,7 @@ public class Configurator {
     private static final String  SUFFIX_PRODUCER_TOPIC="-topic";
     private static final String  SUFFIX_PRODUCER_INTERVAL_MSG_COUNT="-interval-msg-count";
     private static final String  SUFFIX_PRODUCER_PAYLOAD_FILE="-payload-file";
+    private static final String  SUFFIX_PRODUCER_MAX_MSG_TO_PUBLISH="-max-msg-to-publish";
 
     private static final String  KEY_NUM_CONSUMERS = "consumers.num";
     private static final String  KEY_CONSUMER_PREFIX = "consumers.prefix";
@@ -299,9 +300,6 @@ public class Configurator {
                     + ". Defaulting to " + m_bIsForwardingEnabled);
         }
 
-
-        //KEY_PUBLISHING_DURATION_SEC
-        //m_publishingDurationInSec
         value = theProperties.getProperty(Configurator.KEY_PUBLISHING_DURATION_SEC);
         if(value != null && !value.isEmpty())
         {
@@ -401,26 +399,20 @@ public class Configurator {
 
         String key = Configurator.m_producersPrefix + id + SUFFIX_PRODUCER_TOPIC;
         String value = theProperties.getProperty(key);
-        if(value != null && !value.isEmpty())
-        {
+        if(value != null && !value.isEmpty()) {
             info.topic_ = value;
             GeneralLogger.getDefaultLogger().info( key + "=" + value);
-        }
-        else
-        {
+        } else {
             GeneralLogger.getDefaultLogger().error("Unable to load : " + key);
             return false;
         }
 
         key = Configurator.m_producersPrefix + id + SUFFIX_PRODUCER_INTERVAL_MSG_COUNT;
         value = theProperties.getProperty(key);
-        if(value != null && !value.isEmpty())
-        {
+        if(value != null && !value.isEmpty()) {
             info.intervalMessageCount_ = parseInt(value);
             GeneralLogger.getDefaultLogger().info( key + "=" + value);
-        }
-        else
-        {
+        } else {
             GeneralLogger.getDefaultLogger().error(
                     "Unable to load : " + key +
                             ". Defaulting to " + DEFAULT_PRODUCER_INTERVAL_MSG_COUNT );
@@ -429,13 +421,10 @@ public class Configurator {
 
         key = Configurator.m_producersPrefix + id + SUFFIX_PRODUCER_PAYLOAD_FILE;
         value = theProperties.getProperty(key);
-        if(value != null && !value.isEmpty())
-        {
+        if(value != null && !value.isEmpty()) {
             info.payloadFile_ = value;
             GeneralLogger.getDefaultLogger().info( key + "=" + value);
-        }
-        else
-        {
+        } else {
             GeneralLogger.getDefaultLogger().error(
                     "Unable to load : " + key +
                             ". Defaulting to no payload");
@@ -443,19 +432,29 @@ public class Configurator {
 
         key = Configurator.m_producersPrefix + id + SUFFIX_PRODUCER_ID;
         value = theProperties.getProperty(key);
-        if(value != null && !value.isEmpty())
-        {
-            info.id_ = Integer.valueOf(value);
+        if(value != null && !value.isEmpty()) {
+            info.id_ = Integer.parseInt (value);
             GeneralLogger.getDefaultLogger().info(key + "=" + value);
-        }
-        else
-        {
+        } else {
             GeneralLogger.getDefaultLogger().error(
                     "Unable to load : " + key +
                             ". Defaulting to " + String.valueOf(info.id_));
         }
 
-        m_producerMap.put(Integer.valueOf(id), info);
+        //SUFFIX_PRODUCER_MAX_MSG_TO_PUBLISH
+        key = Configurator.m_producersPrefix + id + SUFFIX_PRODUCER_MAX_MSG_TO_PUBLISH;
+        value = theProperties.getProperty(key);
+        if(value != null && !value.isEmpty()) {
+            info.maxMessageToPublish_ = parseLong (value);
+            GeneralLogger.getDefaultLogger().info( key + "=" + value);
+        } else {
+            GeneralLogger.getDefaultLogger().error(
+                    "Unable to load : " + key +
+                            ". Defaulting to " + SUFFIX_PRODUCER_MAX_MSG_TO_PUBLISH );
+            info.maxMessageToPublish_ = 1000;
+        }
+
+        m_producerMap.put( id , info);
         return true;
     }
 
