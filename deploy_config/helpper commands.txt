@@ -1,0 +1,2 @@
+# Finding unique number of partitions that have been used by the publishers
+grep PUBLISHED ./application.log | cut -d ' ' -f 13 | sort -u
