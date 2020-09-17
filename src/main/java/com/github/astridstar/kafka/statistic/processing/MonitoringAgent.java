@@ -49,7 +49,7 @@ public class MonitoringAgent implements IDataStore {
 				for(int i = 1; i <= number; i++)
 				{
 					ProducerInfo info = Configurator.getProducerInformation(i);
-					Forwarder proc = new Forwarder(info.id_,m_terminateLatch);
+					Forwarder proc = new Forwarder(info.id_,info.partitionId_, m_terminateLatch);
 					proc.configure(producerProps);
 					m_forwarders.put(info.id_, proc);
 	
@@ -64,7 +64,13 @@ public class MonitoringAgent implements IDataStore {
 				for(int i = 1; i <= number; i++)
 				{
 					ProducerInfo info = Configurator.getProducerInformation(i);
-					Producer proc = new Producer(info.id_, info.topic_, this, info.intervalMessageCount_, info.payloadFile_, info.maxMessageToPublish_, m_terminateLatch);
+					Producer proc = new Producer( info.id_,
+												  info.topic_,
+											  this, info.intervalMessageCount_,
+												  info.payloadFile_,
+												  info.maxMessageToPublish_,
+												  info.partitionId_,
+												  m_terminateLatch);
 					proc.configure(producerProps);
 					m_producers.put(info.id_, proc);
 	

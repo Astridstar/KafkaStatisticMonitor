@@ -82,7 +82,7 @@ public class MessageProcessor extends Thread implements IDataStore {
 				}
 
 				//m_logger.info ( "----- Outstanding items in incomingQ => " + m_incomingQ.size ( ) + " -----" );
-				m_logger.info ( "[Data Map] => " + m_dataMap.size ( ) + " items " );
+				m_logger.debug ( "[Data Map] => " + m_dataMap.size ( ) + " items " );
 			} catch(InterruptedException e) {
 				GeneralLogger.getDefaultLogger().warn(getName() + " has been interrupted");
 			}

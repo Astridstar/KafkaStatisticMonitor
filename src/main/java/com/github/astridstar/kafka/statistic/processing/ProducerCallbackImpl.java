@@ -26,7 +26,7 @@ public class ProducerCallbackImpl implements Callback {
     public void onCompletion(RecordMetadata metadata, Exception exception) {
         long latency = System.currentTimeMillis() - startTime;
         if (exception == null) {
-            GeneralLogger.getDefaultLogger().info(
+            GeneralLogger.getDefaultLogger().debug(
                     "[PUBLISHED] Topic[" + metadata.topic ()
                             + "] Partition[" + metadata.partition()
                             + "] Offset[" + metadata.offset()

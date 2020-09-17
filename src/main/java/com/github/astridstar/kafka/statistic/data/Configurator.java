@@ -13,19 +13,20 @@ public class Configurator {
 
     private static final String  KEY_METRICS_REPORTING_INTERVAL_MS="metrics.reporting.interval.ms";
     private static final String  KEY_FORWARDER_FUNCTION_ENABLED="fowarder.function.enabled";
-    private static final String  KEY_PUBLISHING_DURATION_SEC="publishing.duration.sec";
 
     private static final String  KEY_NUM_PRODUCERS = "producers.num";
     private static final String  KEY_PRODUCER_PREFIX = "producers.prefix";
     private static final String  KEY_PRODUCERS_REST_DURATION_MS="producers.rest.duration.ms";
     private static final String  KEY_PRODUCERS_PUBLISH_WITH_KEY="producers.publish.with.key";
     private static final String  KEY_PRODUCERS_SEND_TRANSACTIONS="producers.send.transactions";
+    private static final String  KEY_PRODUCERS_START_DELAY_IN_SEC="producers.start.delay.in.sec";
 
     private static final String  SUFFIX_PRODUCER_ID="-id";
     private static final String  SUFFIX_PRODUCER_TOPIC="-topic";
     private static final String  SUFFIX_PRODUCER_INTERVAL_MSG_COUNT="-interval-msg-count";
     private static final String  SUFFIX_PRODUCER_PAYLOAD_FILE="-payload-file";
     private static final String  SUFFIX_PRODUCER_MAX_MSG_TO_PUBLISH="-max-msg-to-publish";
+    private static final String  SUFFIX_PRODUCER_PARTITION_ID="-partition-id";
 
     private static final String  KEY_NUM_CONSUMERS = "consumers.num";
     private static final String  KEY_CONSUMER_PREFIX = "consumers.prefix";
@@ -59,8 +60,8 @@ public class Configurator {
     private static boolean m_bToPublishWithKey = false;
     private static long m_reportingIntervalInMs = 10000;
     private static boolean m_bIsForwardingEnabled = false;
-    private static long m_publishingDurationInSec = 10;
     private static boolean m_bIsTransactionsEnabled = false;
+    private static int m_producersStartDelayInSec = 5;
 
     private static HashMap<Integer, ProducerInfo> m_producerMap = new HashMap<Integer, ProducerInfo>();
     private static HashMap<Integer, ConsumerInfo> m_consumerMap = new HashMap<Integer, ConsumerInfo>();
@@ -112,17 +113,18 @@ public class Configurator {
         return m_bIsForwardingEnabled;
     }
     /**
-     * @return the m_publishingDurationInSec
-     */
-    public static long getPublishingDurationInSec(){
-        return m_publishingDurationInSec;
-    }
-    /**
      * @return the m_bIsTransactionsEnabled
      */
     public static boolean getBIsTransactionsEnabled(){
         return m_bIsTransactionsEnabled;
     }
+    /**
+     * @return the m_producersStartDelayInSec
+     */
+    public static int getProducersStartDelayInSec() {
+        return m_producersStartDelayInSec;
+    }
+
     public static boolean load_properties(String fileName)
     {
         boolean isLoadCompleted = false;
@@ -236,6 +238,19 @@ public class Configurator {
                     + ". Defaulting to " + m_producersRestDurationInMs + "ms");
         }
 
+        //KEY_PRODUCERS_START_DELAY_IN_SEC
+        value = theProperties.getProperty(Configurator.KEY_PRODUCERS_START_DELAY_IN_SEC);
+        if(value != null && !value.isEmpty())
+        {
+            m_producersStartDelayInSec = parseInt (value);
+            GeneralLogger.getDefaultLogger().info(KEY_PRODUCERS_START_DELAY_IN_SEC + ":" + Configurator.m_producersStartDelayInSec);
+        }
+        else
+        {
+            GeneralLogger.getDefaultLogger().error("Unable to load : " + KEY_PRODUCERS_START_DELAY_IN_SEC
+                    + ". Defaulting to " + m_producersStartDelayInSec + "sec");
+        }
+
         // Get the number of consumers
         value = theProperties.getProperty(Configurator.KEY_NUM_CONSUMERS);
         if(value != null && !value.isEmpty())
@@ -299,18 +314,6 @@ public class Configurator {
         {
             GeneralLogger.getDefaultLogger().error("Unable to load : " + KEY_FORWARDER_FUNCTION_ENABLED
                     + ". Defaulting to " + m_bIsForwardingEnabled);
-        }
-
-        value = theProperties.getProperty(Configurator.KEY_PUBLISHING_DURATION_SEC);
-        if(value != null && !value.isEmpty())
-        {
-            m_publishingDurationInSec = parseLong(value);
-            GeneralLogger.getDefaultLogger().info(KEY_PUBLISHING_DURATION_SEC + ":" + Configurator.m_publishingDurationInSec);
-        }
-        else
-        {
-            GeneralLogger.getDefaultLogger().error("Unable to load : " + KEY_PUBLISHING_DURATION_SEC
-                    + ". Defaulting to " + m_publishingDurationInSec);
         }
 
         //KEY_PRODUCERS_SEND_TRANSACTIONS
@@ -454,6 +457,26 @@ public class Configurator {
                             ". Defaulting to " + SUFFIX_PRODUCER_MAX_MSG_TO_PUBLISH );
             info.maxMessageToPublish_ = 1000;
         }
+
+        //SUFFIX_PRODUCER_PARTITION_ID
+        key = Configurator.m_producersPrefix + id + SUFFIX_PRODUCER_PARTITION_ID;
+        value = theProperties.getProperty(key);
+        if(value != null && !value.isEmpty()) {
+            info.partitionId_ = Integer.parseInt (value);
+            GeneralLogger.getDefaultLogger().info(key + "=" + value);
+        } else {
+            GeneralLogger.getDefaultLogger().error(
+                    "Unable to load : " + key +
+                            ". Defaulting to " + String.valueOf(info.partitionId_));
+        }
+
+
+
+
+
+
+
+
 
         m_producerMap.put( id , info);
         return true;

@@ -20,6 +20,7 @@ public class Forwarder extends Thread implements IDataStore {
 	private final int 	 	m_producerId;
 	private final String 	m_producerIdStr;
 	private final Logger	m_logger;
+	private final int		m_assignedPartitionId;
 
 	private boolean			m_keepRunning;
 	private KafkaProducer<String, byte[]> m_kafkaProducer = null;
@@ -54,11 +55,12 @@ public class Forwarder extends Thread implements IDataStore {
 		}
 	}
 	
-	public Forwarder(int id, CountDownLatch latch)
+	public Forwarder(int id, int partitionId, CountDownLatch latch)
 	{
 		super(DEF_PRODUCER_THRD_PREFIX + id);
 		m_producerId = id;
 		m_producerIdStr = Configurator.DEFAULT_LOGGER_GROUP_PREFIX + m_producerId;
+		m_assignedPartitionId = partitionId;
 		m_terminateLatch = latch;
 		m_logger = GeneralLogger.getLogger(m_producerIdStr);
 		m_keepRunning = true;
@@ -106,13 +108,19 @@ public class Forwarder extends Thread implements IDataStore {
 		String decoded = content.rawDataToString();
 		// Send asynchronously
 		ProducerRecord<String, byte[]> record;
-		if(Configurator.getBToPublishWithKey())
-			record = new ProducerRecord<>(content.getTopic(), String.valueOf(m_producerId), content.getRawData());
-		else 
+		if(Configurator.getBToPublishWithKey()) {
+			if(m_assignedPartitionId >= 0) // Publish to specific partition + specific key
+				record = new ProducerRecord <> ( content.getTopic ( ) , m_assignedPartitionId, String.valueOf ( m_producerId ) , content.getRawData ( ) );
+			else  // Publish to random partition + specific key
+				record = new ProducerRecord <> ( content.getTopic ( ) , String.valueOf ( m_producerId ) , content.getRawData ( ) );
+		}
+		else if(m_assignedPartitionId >= 0)  // Publish to specific partition without a key
+			record = new ProducerRecord<>(content.getTopic(), m_assignedPartitionId, null, content.getRawData());
+		else  // Publish to random partition
 			record = new ProducerRecord<>(content.getTopic(), content.getRawData());
 		
 		m_kafkaProducer.send(record, new ProducerCallback(System.currentTimeMillis(), m_producerId, decoded, m_logger));
-		m_logger.info("[FORWARD-REQ]" + decoded);
+		m_logger.debug("[FORWARD-REQ]" + decoded);
 	}
 
 	@Override

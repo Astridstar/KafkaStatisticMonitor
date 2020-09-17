@@ -29,6 +29,7 @@ public class Producer extends Thread {
 	private long 		m_elapsedTimeInMs = 5000;
 	private long		m_startTimeInMs = 0;
 	private long		m_maxMessageCount;
+	private int			m_assignedPartitionId = -1;
 
 	private KafkaProducer<Integer, byte[]> m_kafkaProducer = null;
 	private final CountDownLatch m_terminateLatch;
@@ -43,7 +44,7 @@ public class Producer extends Thread {
 		return String.format("%s%d%s%d", Configurator.SESSION_ID_MSG_ID_PREFIX, m_producerId, Configurator.DEFAULT_MSG_ID_SEPARATOR, ++MESSAGE_ID);
 	}
 
-	public Producer(int id, String publishingTopic, MonitoringAgent ds, int intervalMsgCount, String payloadFile, long maxMessageCount, CountDownLatch latch)
+	public Producer(int id, String publishingTopic, MonitoringAgent ds, int intervalMsgCount, String payloadFile, long maxMessageCount, int partitionId, CountDownLatch latch)
 	{
 		super(DEF_PRODUCER_THRD_PREFIX + id);
 		m_producerId = id;
@@ -54,6 +55,7 @@ public class Producer extends Thread {
 		m_payloadFile = payloadFile;
 		m_terminateLatch = latch;
 		m_maxMessageCount = maxMessageCount;
+		m_assignedPartitionId = partitionId;
 		m_logger = GeneralLogger.getLogger(Configurator.DEFAULT_LOGGER_GROUP_PREFIX + m_producerId);
 	}
 	
@@ -88,19 +90,28 @@ public class Producer extends Thread {
 		
 		if(Configurator.getBIsTransactionsEnabled())
 			m_kafkaProducer.initTransactions();
-		
+
+		int delay = Configurator.getProducersStartDelayInSec ();
+		if(delay > 0) {
+			try {
+				Thread.sleep ( delay * 1000 );
+			} catch (InterruptedException e) {
+				e.printStackTrace ( );
+			}
+		}
+
 		m_startTimeInMs = System.currentTimeMillis();
 		while(m_keepRunning) {
 			currentTime = System.currentTimeMillis();
 			try {
 				messageCount = publish(messageCount);
-
 				long timeDiff = currentTime - m_startTimeInMs;
 				if(timeDiff < m_elapsedTimeInMs) Thread.sleep ( m_elapsedTimeInMs - timeDiff );
 				else Thread.sleep ( m_elapsedTimeInMs );
-
 			} catch (InterruptedException e) {
 				GeneralLogger.getDefaultLogger().warn(getName() + " has been interrupted.");
+			} catch (Exception ex) {
+				GeneralLogger.getDefaultLogger().warn(getName() + " caught an exception.");
 			}
 
 			// Published required number of messages, time to close the producer
@@ -109,8 +120,14 @@ public class Producer extends Thread {
 			//if((currentTime - m_startTimeInMs)/1000 >= Configurator.getPublishingDurationInSec() )
 			//	break;
 		}
-		
-		m_kafkaProducer.close();
+
+		try {
+			m_kafkaProducer.close ( );
+		}
+		catch (Exception e){
+			GeneralLogger.getDefaultLogger().warn("Exception caught while closing KafkaProducer");
+		}
+
 		GeneralLogger.getDefaultLogger().warn(getName() + " thread terminating ... after publishing " + messageCount + " messages.  Target=" + m_maxMessageCount);
 		m_terminateLatch.countDown();
 	}
@@ -131,9 +148,15 @@ public class Producer extends Thread {
 
 			// Send asynchronously
 			ProducerRecord<Integer, byte[]> record;
-			if(Configurator.getBToPublishWithKey())
-				record = new ProducerRecord<>(m_publishedTopic, m_producerId, message.serialize());
-			else
+			if(Configurator.getBToPublishWithKey()) {
+				if (m_assignedPartitionId >= 0) // Publish with a key
+					record = new ProducerRecord <> ( m_publishedTopic , m_producerId , message.serialize ( ) );
+				else // Publish with a key to a specific partition
+					record = new ProducerRecord <> ( m_publishedTopic , m_assignedPartitionId , m_producerId , message.serialize ( ) );
+			}
+			else if(m_assignedPartitionId >= 0) // Publish to a specific partition without a key
+				record = new ProducerRecord <> ( m_publishedTopic, m_assignedPartitionId, null, message.serialize() );
+			else // Publish to any random partition, without key and let kafka libraries determine which partition to go.
 				record = new ProducerRecord<>(m_publishedTopic, message.serialize());
 
 			try {

@@ -97,13 +97,13 @@ public class Consumer extends Thread {
 							//m_logger.info("[RECEIVED] offset = " + record.offset()
 							//		+ ", key = " + record.key() + ", value = " + incomingM.getString() );
 
-							m_logger.info("[RECEIVED] offset = " + record.offset()
+							m_logger.debug("[RECEIVED] offset = " + record.offset()
 									+ ", key = " + record.key() );
 				    		m_datastore.post(m_interestedPublisher, record.topic(), record.timestamp(),record.value());
 				    	}
 				    	else {
 					    	KafkaConsumerMessage incomingM = new KafkaConsumerMessage(record.value(), m_consumerId);
-							m_logger.info("[RECEIVED] offset = " + record.offset()
+							m_logger.debug("[RECEIVED] offset = " + record.offset()
 									+ ", key = " + record.key()
 									+ ", value = " + incomingM.getString());
 				    		m_datastore.post(incomingM);
@@ -119,7 +119,7 @@ public class Consumer extends Thread {
 					if(exception == null){
 						// Commit is successful
 						offsets.forEach ( ( (topicPartition , offsetAndMetadata) ->
-										m_logger.info ( "[COMMITTED] Partition " + topicPartition.partition ()
+										m_logger.debug ( "[COMMITTED] Partition " + topicPartition.partition ()
 										+ ", Topic " + topicPartition.topic ()
 										+ ", Offset " + offsetAndMetadata.offset ()
 										+ ", Metadata " + offsetAndMetadata.metadata ())) );
@@ -131,10 +131,17 @@ public class Consumer extends Thread {
 			} catch(WakeupException e) {
 				GeneralLogger.getDefaultLogger().debug(getName() + " has been waken.");
 			}
+			catch (Exception ex) {
+				GeneralLogger.getDefaultLogger().warn(getName() + " caught an exception.");
+			}
 		}
 
-		m_consumer.unsubscribe();
-		m_consumer.close();
+		try {
+			m_consumer.unsubscribe ( );
+			m_consumer.close ( );
+		} catch (Exception e) {
+			m_logger.warn("Exception caught while trying to unsubscribe and close the Kafka consumer.");
+		}
 		m_logger.info("Consumer closed.");
 		GeneralLogger.getDefaultLogger().warn(getName() + " thread terminating ...");
 		m_terminateLatch.countDown();
