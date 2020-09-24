@@ -6,11 +6,14 @@ import com.github.astridstar.kafka.statistic.loggers.GeneralLogger;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
 import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
@@ -114,14 +117,17 @@ public class Producer extends Thread {
 				GeneralLogger.getDefaultLogger().warn(getName() + " caught an exception.");
 			}
 
-			// Published required number of messages, time to close the producer
+			// Published all required number of messages, time to stop producing and close the producer
 			if(m_maxMessageCount <= messageCount) break;
-
-			//if((currentTime - m_startTimeInMs)/1000 >= Configurator.getPublishingDurationInSec() )
-			//	break;
 		}
 
+		GeneralLogger.getDefaultLogger().info(getName() + " shutdown initiated ...");
 		try {
+			// Print the metrics kept by kafka for the producer before closing the KafkaProducer
+			for (Map.Entry <MetricName, ? extends Metric> entry : m_kafkaProducer.metrics ( ).entrySet ( )) {
+				String s = entry.getKey ( ).name ( ) + " : " + entry.getValue ( ).metricValue ( );
+				GeneralLogger.getDefaultLogger().info(getName () + " ** " + s);
+			}
 			m_kafkaProducer.close ( );
 		}
 		catch (Exception e){
@@ -162,6 +168,10 @@ public class Producer extends Thread {
 			try {
 				m_kafkaProducer.send ( record ,
 						new ProducerCallbackImpl ( System.currentTimeMillis ( ) , message ) );
+
+				// Commit this message as sent to the MessageProcessor.
+				// Note that we may get a failed published in ProducerCallbackImpl callback
+				// but this will still be treated as a missing messages / failures
 				m_datastore.post ( message );
 
 				counter++;

@@ -88,11 +88,19 @@ public class Forwarder extends Thread implements IDataStore {
 				forward(m_incomingQ.take());
 			}
 			catch(InterruptedException e) {
-				GeneralLogger.getDefaultLogger().warn(getName() + " has been interrupted");
+				m_logger.warn(getName() + " has been interrupted");
 			}
-		}		
-				
-		m_kafkaProducer.close();
+			catch(Exception ex){
+				m_logger.warn(getName() + " caught an exception while trying to forward received messages" );
+			}
+		}
+
+		GeneralLogger.getDefaultLogger().info(getName() + " shutdown initiated ...");
+		try {
+			m_kafkaProducer.close ( );
+		} catch (Exception ex){
+			m_logger.warn(getName() + " caught an exception while trying to closing the forwarder. Exiting the thread anyway" );
+		}
 		m_logger.info("Forwarder closed now.");
 		GeneralLogger.getDefaultLogger().warn(getName() + " thread terminating ...");
 		m_terminateLatch.countDown();

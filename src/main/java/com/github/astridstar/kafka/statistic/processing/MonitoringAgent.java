@@ -112,6 +112,8 @@ public class MonitoringAgent implements IDataStore {
 	
 	public void cleanup()
 	{
+		GeneralLogger.getDefaultLogger().info("MonitoringAgent shutdown initiated ...");
+
 		// clean up the producers and consumers first
 		m_producers.forEach((k,v)-> v.cleanup() );
 

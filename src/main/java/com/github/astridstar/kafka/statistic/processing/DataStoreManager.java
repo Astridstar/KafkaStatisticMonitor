@@ -44,6 +44,7 @@ public class DataStoreManager extends Thread implements IDataStore{
 	
 	public void cleanup()
 	{
+		GeneralLogger.getDefaultLogger().info("DataStoreManager shutdown initiated ...");
 		m_isRunning = false;
 		interrupt();
 		

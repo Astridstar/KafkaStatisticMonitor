@@ -21,6 +21,14 @@
         <element id="file-copy" path="$PROJECT_DIR$/config/producer.properties" />
         <element id="file-copy" path="$PROJECT_DIR$/config/StatisticsMonitor.properties" />
       </element>
+      <element id="directory" name="deploy_config">
+        <element id="dir-copy" path="$PROJECT_DIR$/deploy_config" />
+      </element>
+      <element id="directory" name="deploy_kafka_configs">
+        <element id="dir-copy" path="$PROJECT_DIR$/deploy_kafka_configs" />
+      </element>
+      <element id="directory" name="logs" />
+      <element id="directory" name="received" />
     </root>
   </artifact>
 </component>
